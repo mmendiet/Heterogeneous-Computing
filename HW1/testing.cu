@@ -45,19 +45,20 @@ int main(int argc, char* argv[]) {
     b = (int*)malloc(size); random_ints(b, N);
     c = (int*)malloc(size);  
     if (strcmp(argv[3],"gpu")==0) {
-        // host copies of a, b, c
-        int *d_a, *d_b, *d_c;
-        // Allocate space for device copies of a, b, c
-        cudaMalloc((void **)&d_a, size);
-        cudaMalloc((void **)&d_b, size);
-        cudaMalloc((void **)&d_c, size);
-
-        // Copy inputs to device
-        cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);
-        cudaMemcpy(d_b, b, size, cudaMemcpyHostToDevice);
-        // Launch add() kernel on GPU
         float total_time = 0;
         for(int i=0; i< 1000; ++i) {
+            // host copies of a, b, c
+            int *d_a, *d_b, *d_c;
+            // Allocate space for device copies of a, b, c
+            cudaMalloc((void **)&d_a, size);
+            cudaMalloc((void **)&d_b, size);
+            cudaMalloc((void **)&d_c, size);
+
+            // Copy inputs to device
+            cudaMemcpy(d_a, a, size, cudaMemcpyHostToDevice);
+            cudaMemcpy(d_b, b, size, cudaMemcpyHostToDevice);
+            // Launch add() kernel on GPU
+
             float time;
             cudaEvent_t start, stop;
             
@@ -72,11 +73,12 @@ int main(int argc, char* argv[]) {
             cudaEventDestroy( start );
             cudaEventDestroy( stop );
             total_time += time;
+        
+            // Copy result back to host
+            cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);
+            cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
         }
-        // Copy result back to host
-        cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);
-        cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
-        float nanosec = (total_time);
+        float nanosec = (total_time)/1000;
         std::cout << "N: " << N << "   M: " << M << "   GPU time: " << nanosec << "ns" << std::endl;
     }
 
