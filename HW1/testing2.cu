@@ -49,6 +49,14 @@ int main(int argc, char* argv[]) {
         // host copies of a, b, c
         int *d_a, *d_b, *d_c;
         // Allocate space for device copies of a, b, c
+
+        float time;
+        cudaEvent_t start, stop;
+        
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord( start, 0 );
+
         cudaMalloc((void **)&d_a, size);
         cudaMalloc((void **)&d_b, size);
         cudaMalloc((void **)&d_c, size);
@@ -58,13 +66,11 @@ int main(int argc, char* argv[]) {
         cudaMemcpy(d_b, b, size, cudaMemcpyHostToDevice);
         // Launch add() kernel on GPU
 
-        float time;
-        cudaEvent_t start, stop;
-        
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord( start, 0 );
         add<<<(N + M-1) / M,M>>>(d_a, d_b, d_c, N);
+
+    
+        // Copy result back to host
+        cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);
         cudaEventRecord( stop, 0 );
         cudaEventSynchronize( stop );
 
@@ -72,9 +78,7 @@ int main(int argc, char* argv[]) {
         cudaEventDestroy( start );
         cudaEventDestroy( stop );
         total_time += time;
-    
-        // Copy result back to host
-        cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);
+
         cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
         float nanosec = (total_time)*1000000;
         std::cout << "N: " << N << "   M: " << M << "   GPU time: " << nanosec << "ns" << std::endl;
