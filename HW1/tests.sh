@@ -18,4 +18,3 @@ for M in 128 256 512 1024
         ./test2 1000000 $M gpu
         #./test2 $N 128 cpu
     done
-

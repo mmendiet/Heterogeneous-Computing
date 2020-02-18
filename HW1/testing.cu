@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
         cudaMemcpy(c, d_c, size, cudaMemcpyDeviceToHost);
         cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
         float nanosec = (total_time)*1000000;
-        std::cout << "N: " << N << "   M: " << M << "   GPU time: " << nanosec << "ns" << std::endl;
+        std::cout << "N: " << N << "   M: " << M << "   GPU time: " << nanosec << " ns" << std::endl;
     }
 
     else {
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
         cpuAdd(a,b,c, N);
         auto t2 = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>( t2 - t1 ).count();
-        std::cout << "N: " << N << "   M: " << M << "   CPU time: " << duration << "ns" << std::endl;
+        std::cout << "N: " << N << "   M: " << M << "   CPU time: " << duration << " ns" << std::endl;
         //time = 100.0;
     }
     //printf("a[0]: %i, b[0]: %i, c[0]: %i\nGPU Time: %f\n", a[0], b[0], c[0], time);

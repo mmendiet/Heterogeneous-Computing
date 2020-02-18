@@ -45,7 +45,6 @@ int main(int argc, char* argv[]) {
     b = (int*)malloc(size); random_ints(b, N);
     c = (int*)malloc(size);  
     if (strcmp(argv[3],"gpu")==0) {
-        float total_time = 0;
         // host copies of a, b, c
         int *d_a, *d_b, *d_c;
         // Allocate space for device copies of a, b, c
@@ -77,10 +76,9 @@ int main(int argc, char* argv[]) {
         cudaEventElapsedTime( &time, start, stop );
         cudaEventDestroy( start );
         cudaEventDestroy( stop );
-        total_time += time;
 
         cudaFree(d_a); cudaFree(d_b); cudaFree(d_c);
-        float nanosec = (total_time)*1000000;
+        float nanosec = (time)*1000000;
         std::cout << "N: " << N << "   M: " << M << "   GPU time: " << nanosec << "ns" << std::endl;
     }
 
