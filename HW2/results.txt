@@ -1,0 +1,26 @@
+N: 100	nt	0	GPU time: 22.272us
+N: 100	MT	0	GPU time: 82.432us
+N: 1000	nt	0	GPU time: 1698.94us
+N: 1000	MT	0	GPU time: 4549.6us
+N: 10000	nt	0	GPU time: 3.4837e+06us
+N: 10000	MT	0	GPU time: 3.71378e+06us
+N: 100	nt	1	GPU time: 18.336us
+N: 100	MT	1	GPU time: 74.528us
+N: 1000	nt	1	GPU time: 1094.24us
+N: 1000	MT	1	GPU time: 3973.28us
+N: 10000	nt	1	GPU time: 2.77348e+06us
+N: 10000	MT	1	GPU time: 3.00029e+06us
+
+
+N: 100	nt	0	GPU time: 18.24us
+N: 100	MT	0	GPU time: 78.368us
+N: 1000	nt	0	GPU time: 1128us
+N: 1000	MT	0	GPU time: 4106.72us
+N: 10000	nt	0	GPU time: 786938us
+N: 10000	MT	0	GPU time: 1.0202e+06us
+N: 100	nt	1	GPU time: 17.824us
+N: 100	MT	1	GPU time: 74.944us
+N: 1000	nt	1	GPU time: 792.288us
+N: 1000	MT	1	GPU time: 3687.65us
+N: 10000	nt	1	GPU time: 776920us
+N: 10000	MT	1	GPU time: 1.02575e+06us
