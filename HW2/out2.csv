@@ -1,0 +1,9 @@
+Implementation,N=100,N=1k,N=10k,N=100k,N=1M
+Naive,0.027648,1.12845,1255.52
+Naive w/ Memory Coalescing,0.014336,1.05882,1333.45
+Tiling using Shared Memory,0.012288,0.602112,552.948
+Tiling using Shared Memory with Memory Coalescing,0.008192,0.033792,2.25587
+Naive including memcpy,0.145408,4.05094,1401.63
+Naive w/ Memory Coalescing and memcpy,0.078848,6.38566,1453.49
+Tiling using Shared Memory and memcpy,0.077824,5.9351,690.248
+Tiling using Shared Memory with Memory Coalescing and memcpy,0.070656,5.35654,123.1
