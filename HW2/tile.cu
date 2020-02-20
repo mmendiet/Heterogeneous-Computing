@@ -50,8 +50,8 @@ __global__ void matrixMul(int* A_cpu, int* B_cpu, int* C_cpu, int N)
 
          __syncthreads();
 
-         for (int n = 0; n < TILE_DIM; ++n)
-             accu += shd_A[threadIdx.y][n] * shd_B[n][threadIdx.x];
+         for (int k = 0; k<TILE_DIM; k++)
+             accu += shd_A[threadIdx.y][k] * shd_B[k][threadIdx.x];
 
          __syncthreads();
     }
@@ -100,8 +100,8 @@ __global__ void matrixMulCol(int* A_cpu, int* B_cpu, int* C_cpu, int N)
 
          __syncthreads();
 
-         for (int n = 0; n < TILE_DIM; ++n)
-             accu += shd_A[threadIdx.y][n] * shd_B[n][threadIdx.x];
+         for (int k=0; k<TILE_DIM; k++)
+             accu += shd_A[threadIdx.y][k] * shd_B[k][threadIdx.x];
 
          __syncthreads();
     }
