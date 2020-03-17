@@ -7,7 +7,7 @@ __global__ void my_kernel(){
   printf("Hello!!\n");
 }
 
-__global__ void directConv(int* I_gpu, int* K_gpu, int* O_gpu, int Ho, int Wo, int k) {
+__global__ void directConv(int* I_gpu, int* K_gpu, int* O_gpu, int Ho, int Wo, int k, int nK) {
   // Row i of matrix C
   int row = blockIdx.y * blockDim.y + threadIdx.y;
   // Column j of matrix C
@@ -15,10 +15,39 @@ __global__ void directConv(int* I_gpu, int* K_gpu, int* O_gpu, int Ho, int Wo, i
   
   int accu = 0;
   if(row<Ho && col<Wo) {
-    for(int c=0; c<k; c++) {
+    for (int f=0; f<nK; f++) {
+      for(int c=0; c<k; c++) {
         for(int r=0; r<k; r++) {
-            accu = accu + I_gpu[(row+c)*(Wo+k-1)+(col+r)] * K_gpu[c*k+r];
+            accu = accu + I_gpu[(row+c)*(Wo+k-1)+(col+r)] * K_gpu[(c+f)*k+r];
         }
+      }
+    }
+    O_gpu[row*Wo+col] = accu;
+  }
+}
+
+__global__ void directConv_shared(int* I_gpu, int* K_gpu, int* O_gpu, int Ho, int Wo, int k, int nK) {
+  // Row i of matrix C
+  int row = blockIdx.y * blockDim.y + threadIdx.y;
+  // Column j of matrix C
+  int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+  extern __shared__ int filter[];
+  // for(int f=0; f<K*nK; f++) {
+  //   filter[f] = K_gpu[f];
+  // }
+  if(col<nK) {
+    filter[threadIdx.x*k] = K_gpu[nK+col];
+  }
+  
+  int accu = 0;
+  if(row<Ho && col<Wo) {
+    for (int f=0; f<nK; f++) {
+      for(int c=0; c<k; c++) {
+        for(int r=0; r<k; r++) {
+            accu = accu + I_gpu[(row+c)*(Wo+k-1)+(col+r)] * filter[(c+f)*k+r];
+        }
+      }
     }
     O_gpu[row*Wo+col] = accu;
   }
@@ -50,9 +79,7 @@ __global__ void matrixMulCol_shared(int* I_gpu, int* K_gpu, int* O_gpu, int Hc, 
   //   filter[f] = K_gpu[f];
   // }
   if(col<nK) {
-    for(int f=0; f<K; f++) {
-      filter[f] = K_gpu[f*nK+col];
-    }
+    filter[threadIdx.x*K] = K_gpu[nK+col];
   }
 
   __syncthreads();
@@ -61,14 +88,14 @@ __global__ void matrixMulCol_shared(int* I_gpu, int* K_gpu, int* O_gpu, int Hc, 
   if(row<Hc && col<nK) {
     for(int k=0; k<K; k++) {
         //accu = accu + I_gpu[k*Hc+row] * filter[k*nK+col];
-        accu = accu + I_gpu[k*Hc+row] * filter[k];
+        accu = accu + I_gpu[k*Hc+row] * filter[threadIdx.x*K+k];
     }
     O_gpu[row*nK+col] = accu;
   }
 }
 
 
-float dirConv(int* I_cpu, int* K_cpu, int* O_cpu, int I_size, int K_size, int O_size, int Ho, int Wo, int k) {
+float dirConv(int* I_cpu, int* K_cpu, int* O_cpu, int I_size, int K_size, int O_size, int Ho, int Wo, int k, int nK) {
   int *I_gpu, *K_gpu, *O_gpu;
 
   cudaMalloc((void **)&I_gpu, I_size);
@@ -91,7 +118,53 @@ float dirConv(int* I_cpu, int* K_cpu, int* O_cpu, int I_size, int K_size, int O_
   //std::cout << "MC\n";
   cudaEventRecord( start, 0 );
   //std::cout << K << std::endl;
-  directConv<<<dimGrid, dimBlock>>>(I_gpu,K_gpu,O_gpu,Ho,Wo,k);
+  directConv<<<dimGrid, dimBlock>>>(I_gpu,K_gpu,O_gpu,Ho,Wo,k, nK);
+  //matrixMulCol<<<1, 1>>>(I_gpu,K_gpu,O_gpu,Hc,nK,K);
+  cudaEventRecord( stop, 0 );
+
+  cudaEventSynchronize( stop );
+  cudaEventElapsedTime( &time, start, stop );
+  cudaEventDestroy( start );
+  cudaEventDestroy( stop );
+  //memcopy C_gpu to C_cpu
+  cudaMemcpy(O_cpu, O_gpu, O_size, cudaMemcpyDeviceToHost);
+  //stop time
+  
+  cudaFree(I_gpu); cudaFree(K_gpu); cudaFree(O_gpu);
+  float microsec = (time)*1000;
+  //std::cout << "k: " << k << "\tGPU time: " << microsec << "us" << std::endl;
+  cudaDeviceSynchronize();
+  return microsec;
+}
+
+float dirConv_shared(int* I_cpu, int* K_cpu, int* O_cpu, int I_size, int K_size, int O_size, int Ho, int Wo, int k, int nK) {
+  int *I_gpu, *K_gpu, *O_gpu;
+
+  cudaMalloc((void **)&I_gpu, I_size);
+  cudaMalloc((void **)&K_gpu, K_size);
+  cudaMalloc((void **)&O_gpu, O_size);
+
+  //dim3 dimBlock(16, 16);
+  //dim3 dimGrid((N+dimBlock.x-1)/dimBlock.x, (N+dimBlock.y-1)/dimBlock.y);
+  dim3 dimBlock(16, 16);
+  dim3 dimGrid((Ho+dimBlock.x-1)/dimBlock.x, (Wo+dimBlock.y-1)/dimBlock.y);
+
+  // Copy inputs to device
+  cudaMemcpy(I_gpu, I_cpu, I_size, cudaMemcpyHostToDevice);
+  cudaMemcpy(K_gpu, K_cpu, K_size, cudaMemcpyHostToDevice);
+
+  float time = 0;
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  //std::cout << "MC\n";
+  cudaEventRecord( start, 0 );
+  //std::cout << K << std::endl;
+
+  cudaFuncSetCacheConfig(directConv_shared, cudaFuncCachePreferShared);
+  //std::cout << dimGrid.y << std::endl;
+  //matrixMulCol_shared<<<dimGrid, dimBlock, dimBlock.x*K*sizeof(int)>>>(I_gpu,K_gpu,O_gpu,Hc,nK,K);
+  directConv_shared<<<dimGrid, dimBlock, dimBlock.x*2*k*sizeof(int)>>>(I_gpu,K_gpu,O_gpu,Ho,Wo,k, nK);
   //matrixMulCol<<<1, 1>>>(I_gpu,K_gpu,O_gpu,Hc,nK,K);
   cudaEventRecord( stop, 0 );
 
@@ -177,7 +250,8 @@ float matMul_shared(int* I_cpu, int* K_cpu, int* O_cpu, int I_size, int K_size, 
   cudaEventRecord( start, 0 );
   //std::cout << K << std::endl;
   cudaFuncSetCacheConfig(matrixMulCol_shared, cudaFuncCachePreferShared);
-  matrixMulCol_shared<<<dimGrid, dimBlock, K*sizeof(int)>>>(I_gpu,K_gpu,O_gpu,Hc,nK,K);
+  //std::cout << dimGrid.y << std::endl;
+  matrixMulCol_shared<<<dimGrid, dimBlock, dimBlock.x*K*sizeof(int)>>>(I_gpu,K_gpu,O_gpu,Hc,nK,K);
   //matrixMulCol_shared<<<dimGrid, dimBlock, K*sizeof(int)>>>(I_gpu,K_gpu,O_gpu,Hc,nK,K);
 
   cudaEventRecord( stop, 0 );

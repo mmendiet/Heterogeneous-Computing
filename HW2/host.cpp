@@ -21,7 +21,6 @@
 void GEMM(bool shared);
 void networkGEMM(bool shared);
 void dConv(bool shared);
-void GEMM2(bool shared);
 
 void random_ints(int* x, int size)
     {
@@ -132,6 +131,8 @@ int main(int argc, char* argv[]){
 
 
     shared=true;
+    std::cout << "Direct -- With Shared:\n";
+    dConv(shared);
     std::cout << "GEMM -- With Shared:\n";
     GEMM(shared);
     std::cout << "Network -- With Shared:\n";
@@ -203,69 +204,6 @@ void GEMM(bool shared) {
     }
 }
 
-void GEMM2(bool shared) {
-    float all_micro = 0.0;
-    for(int k=3;k<=9;k=k+2) {
-        //int k = 5;
-        for(int f=0;f<120;f++) {
-            cv::Mat image;
-            std::string filename = "/home/matias/Documents/spring2020/Heterogeneous-Computing/HW2/Sample-Video/viptraffic"+std::to_string(f)+".ppm";
-            image = cv::imread(filename, CV_32SC1);
-            //image.convertTo(image,CV_32SC3);
-            //my_cuda_func();
-            int Hi = 3;
-            int Wi = 3*3;
-            int Ci = 1;
-            
-            int K = k*k*Ci;
-            int nK = 1;
-            int Hc = (Hi-(k-1))*(Wi-(k-1));
-            int stride = 1;
-            //define A_cpu, B_cpu, C_cpu in the CPU memory
-            int *I_cpu, *K_cpu, *O_cpu;
-
-
-            int I_size =  (K)*(Hc) * sizeof(int);
-            int K_size =  (K) * (nK) * sizeof(int);
-            int O_size =  Hc * nK * sizeof(int);
-
-            // Setup input values
-            //std::cout << image.rows << " " << image.cols << std::endl;
-            I_cpu = (int*)malloc(I_size); random_ints(I_cpu, (K*Hc) );
-            
-            // int temp_size = Hi*Wi*Ci*sizeof(int);
-            // int* temp_im = (int*)malloc(temp_size);
-            // get_im(temp_im, image);
-            
-            // im2col(image.rows, image.cols, k, I_cpu, temp_im, stride);
-            // free(temp_im);
-            
-            K_cpu = (int*)malloc(K_size); random_ints(K_cpu, (K*nK) );
-            O_cpu = (int*)malloc(O_size);
-            //std::cout << K << " " << Hc << std::endl;
-
-            std::cout << "I: ";
-            print(I_cpu, (K*Hc));
-            std::cout << "K: ";
-            print(K_cpu, (K*nK));
-            //std::cout << "O: ";
-            //print(O_cpu, (Hc*nK));
-            float microsec = 0.0;
-            if(shared==true) {
-                microsec = matMul_shared(I_cpu, K_cpu, O_cpu, I_size, K_size, O_size, Hc, nK, K);
-            }
-            else {
-                microsec = matMul(I_cpu, K_cpu, O_cpu, I_size, K_size, O_size, Hc, nK, K);
-            }
-            all_micro += microsec;
-            std::cout << "\n\nO: ";
-            print(O_cpu, (Hc*nK));
-            free(I_cpu); free(K_cpu); free(O_cpu);
-        }
-        std::cout << "k: " << k << "\tGPU time: " << (all_micro/120) << "us" << std::endl;
-    }
-}
-
 void dConv(bool shared) {
     for(int k=3;k<=9;k=k+2) {
         //int k = 5;
@@ -279,8 +217,8 @@ void dConv(bool shared) {
             int Hi = image.rows;
             int Wi = image.cols*3;
             int Ci = 1;
-            
-            int K = k*k;
+            int nK = 1;
+            int K = k*k*nK;
             int Ho = (Hi-(k-1));
             int Wo = (Wi-(k-1));
             int stride = 1;
@@ -314,10 +252,10 @@ void dConv(bool shared) {
             //print(O_cpu, (Ho*Wo));
             float microsec = 0.0;
             if(shared==true) {
-                microsec = dirConv(I_cpu, K_cpu, O_cpu, I_size, K_size, O_size, Ho, Wo, k);
+                microsec = dirConv_shared(I_cpu, K_cpu, O_cpu, I_size, K_size, O_size, Ho, Wo, k, nK);
             }
             else {
-                microsec = dirConv(I_cpu, K_cpu, O_cpu, I_size, K_size, O_size, Ho, Wo, k);
+                microsec = dirConv(I_cpu, K_cpu, O_cpu, I_size, K_size, O_size, Ho, Wo, k, nK);
             }
             all_micro += microsec;
             //std::cout << "\n\nO: ";
